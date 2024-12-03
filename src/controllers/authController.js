@@ -6,6 +6,11 @@ import pool from '../config/db.js';
 export const registerAlumno = async (req, res) => {
   const { nombre, email, password } = req.body;
 
+  // Validación básica
+  if (!nombre || !email || !password) {
+      return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+  }
+
   try {
       // Encriptar la contraseña
       const hashedPassword = await bcrypt.hash(password, 10);
@@ -30,6 +35,7 @@ export const registerAlumno = async (req, res) => {
       res.status(500).json({ error: 'Error al registrar al alumno' });
   }
 };
+
 // Función para iniciar sesión
 export const loginAlumno = async (req, res) => {
   const { email, password } = req.body;
