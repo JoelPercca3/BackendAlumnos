@@ -1,5 +1,3 @@
-import bcrypt from 'bcrypt';
-import jwt from 'jsonwebtoken';
 import pool from '../config/db.js';
 
 // Función para registrar un nuevo alumno
@@ -8,31 +6,28 @@ export const registerAlumno = async (req, res) => {
 
   // Validación básica
   if (!nombre || !email || !password) {
-      return res.status(400).json({ error: 'Todos los campos son obligatorios' });
+    return res.status(400).json({ error: 'Todos los campos son obligatorios' });
   }
 
   try {
-      // Encriptar la contraseña
-      const hashedPassword = await bcrypt.hash(password, 10);
+    // Insertar el alumno en la tabla (sin encriptar la contraseña)
+    const result = await pool.query(
+      'INSERT INTO alumnos (nombre, email, password) VALUES ($1, $2, $3) RETURNING *',
+      [nombre, email, password]  // Usamos la contraseña tal cual sin encriptarla
+    );
 
-      // Insertar el alumno en la tabla
-      const result = await pool.query(
-          'INSERT INTO alumnos (nombre, email, password) VALUES ($1, $2, $3) RETURNING *',
-          [nombre, email, hashedPassword]
-      );
-
-      res.status(201).json({
-          message: 'Alumno registrado exitosamente',
-          alumno: result.rows[0],
-      });
+    res.status(201).json({
+      message: 'Alumno registrado exitosamente',
+      alumno: result.rows[0],
+    });
   } catch (error) {
-      console.error(error);
+    console.error(error);
 
-      if (error.code === '23505') {
-          return res.status(400).json({ error: 'El email ya está registrado' });
-      }
+    if (error.code === '23505') {
+      return res.status(400).json({ error: 'El email ya está registrado' });
+    }
 
-      res.status(500).json({ error: 'Error al registrar al alumno' });
+    res.status(500).json({ error: 'Error al registrar al alumno' });
   }
 };
 
@@ -41,28 +36,28 @@ export const loginAlumno = async (req, res) => {
   const { email, password } = req.body;
 
   try {
-      // Verifica si el usuario existe
-      const result = await pool.query('SELECT * FROM alumnos WHERE email = $1', [email]);
-      const user = result.rows[0];
+    // Verifica si el usuario existe
+    const result = await pool.query('SELECT * FROM alumnos WHERE email = $1', [email]);
+    const user = result.rows[0];
 
-      if (!user) {
-          return res.status(404).json({ message: 'Usuario no encontrado' });
-      }
+    if (!user) {
+      return res.status(404).json({ message: 'Usuario no encontrado' });
+    }
 
-      // Comparar la contraseña directamente (sin encriptación)
-      if (password !== user.password) {
-          return res.status(401).json({ message: 'Credenciales incorrectas' });
-      }
+    // Comparar la contraseña sin encriptación
+    if (password !== user.password) {  // Compara la contraseña directamente
+      return res.status(401).json({ message: 'Credenciales incorrectas' });
+    }
 
-      // Responder con un mensaje de éxito
-      res.status(200).json({ message: 'Login exitoso', user });
+    // Responder con un mensaje de éxito
+    res.status(200).json({ message: 'Login exitoso', user: { id: user.id, nombre: user.nombre, email: user.email } });
   } catch (error) {
-      console.error('Error en login:', error);
-      res.status(500).json({ message: 'Error en el servidor' });
+    console.error('Error en login:', error);
+    res.status(500).json({ message: 'Error en el servidor' });
   }
 };
 
-
+// Función para obtener todos los alumnos
 export const getAlumnos = async (req, res) => {
   try {
     const result = await pool.query('SELECT * FROM alumnos');
@@ -72,18 +67,14 @@ export const getAlumnos = async (req, res) => {
     res.status(500).json({ message: 'Error al obtener los alumnos' });
   }
 };
+
+// Función para actualizar un alumno
 export const updateAlumno = async (req, res) => {
   const { id } = req.params;
   const { nombre, email, password } = req.body;
 
   try {
-    // Encriptar la contraseña si se actualiza
-    let hashedPassword;
-    if (password) {
-      const saltRounds = 10;
-      hashedPassword = await bcrypt.hash(password, saltRounds);
-    }
-
+    // Si se pasa una nueva contraseña, la actualizamos
     const query = `
       UPDATE alumnos 
       SET 
@@ -92,7 +83,7 @@ export const updateAlumno = async (req, res) => {
         password = COALESCE($3, password) 
       WHERE id = $4 
       RETURNING *`;
-    const values = [nombre, email, hashedPassword, id];
+    const values = [nombre, email, password, id];
 
     const result = await pool.query(query, values);
 
@@ -106,6 +97,8 @@ export const updateAlumno = async (req, res) => {
     res.status(500).json({ message: 'Error al actualizar el alumno' });
   }
 };
+
+// Función para eliminar un alumno
 export const deleteAlumno = async (req, res) => {
   const { id } = req.params;
 
