@@ -13,7 +13,7 @@ router.post('/login', loginAlumno);
 router.get('/alumnos', getAlumnos);
 
 // Ruta para actualizar los alumnos
-router.get('/alumnos/:id', updateAlumno);
+router.put('/alumnos/:id', updateAlumno);
 
 // Ruta para eliminar alumnos
 router.delete('/alumnos/:id', deleteAlumno);
